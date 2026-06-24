@@ -1,8 +1,6 @@
 services:
   bybots:
-    build:
-      context: ..
-      dockerfile: config/Dockerfile
+    build: .
     container_name: bybots
     restart: unless-stopped
     env_file:
@@ -20,12 +18,10 @@ services:
       start_period: 30s
 
   dashboard:
-    build:
-      context: ..
-      dockerfile: config/Dockerfile
+    build: .
     container_name: bybots-dashboard
     restart: unless-stopped
-    command: ["python", "src/dashboard.py"]
+    command: ["python", "dashboard.py"]
     env_file:
       - .env
     environment:
