@@ -507,5 +507,5 @@ This project is for educational and personal use. Facebook scraping should compl
 
 Built for the BY RAN ONLINE community.
 
-**Maintainer:** BY BOTS Development Team  
+**Maintainer:** Miguel Pilapil (Beeenek)
 **Discord:** [Join BY RAN ONLINE Discord](https://discord.gg/byranofficial)
