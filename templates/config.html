@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration - BY BOTS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>⚙️ Configuration Editor</h2>
+    <p class="help-text" style="margin-bottom: 1.5rem;">
+        Edit your bot configuration below. Changes will be saved to your .env file.
+        <strong>Note:</strong> You may need to restart the bot for changes to take effect.
+    </p>
+    
+    <form id="config-form">
+        <h3>Discord Settings</h3>
+        
+        <div class="form-group">
+            <label for="DISCORD_TOKEN">Bot Token *</label>
+            <input type="password" id="DISCORD_TOKEN" name="DISCORD_TOKEN" value="{{ config.DISCORD_TOKEN }}" required>
+            <div class="help-text">Your Discord bot token from the Developer Portal</div>
+        </div>
+        
+        <div class="form-group">
+            <label for="DISCORD_CHANNEL_ID">Default Channel ID *</label>
+            <input type="text" id="DISCORD_CHANNEL_ID" name="DISCORD_CHANNEL_ID" value="{{ config.DISCORD_CHANNEL_ID }}" required>
+            <div class="help-text">Default text channel for posts (right-click channel → Copy ID)</div>
+        </div>
+        
+        <div class="form-group">
+            <label for="DISCORD_GUILD_ID">Guild/Server ID (optional)</label>
+            <input type="text" id="DISCORD_GUILD_ID" name="DISCORD_GUILD_ID" value="{{ config.DISCORD_GUILD_ID }}">
+            <div class="help-text">Your Discord server ID for instant slash command sync</div>
+        </div>
+        
+        <div class="form-group">
+            <label for="DISCORD_PING_ROLE_ID">Ping Role ID (optional)</label>
+            <input type="text" id="DISCORD_PING_ROLE_ID" name="DISCORD_PING_ROLE_ID" value="{{ config.DISCORD_PING_ROLE_ID }}">
+            <div class="help-text">Role to ping on new posts (leave blank to disable)</div>
+        </div>
+        
+        <div class="form-group">
+            <label for="DISCORD_STREAMER_CHANNEL_ID">Streamer Channel ID (optional)</label>
+            <input type="text" id="DISCORD_STREAMER_CHANNEL_ID" name="DISCORD_STREAMER_CHANNEL_ID" value="{{ config.DISCORD_STREAMER_CHANNEL_ID }}">
+            <div class="help-text">Dedicated channel for live stream posts</div>
+        </div>
+        
+        <hr style="border: none; border-top: 1px solid #30363d; margin: 2rem 0;">
+        
+        <h3>Facebook Settings</h3>
+        
+        <div class="form-group">
+            <label for="FACEBOOK_SOURCES">Facebook Sources *</label>
+            <textarea id="FACEBOOK_SOURCES" name="FACEBOOK_SOURCES" rows="3" required>{{ config.FACEBOOK_SOURCES }}</textarea>
+            <div class="help-text">Comma-separated Facebook group/page URLs to monitor</div>
+        </div>
+        
+        <hr style="border: none; border-top: 1px solid #30363d; margin: 2rem 0;">
+        
+        <h3>Post Filtering</h3>
+        
+        <div class="form-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="FILTER_BY_AUTHOR" name="FILTER_BY_AUTHOR" value="true" {% if config.FILTER_BY_AUTHOR == 'true' %}checked{% endif %}>
+                <label for="FILTER_BY_AUTHOR" style="margin: 0;">Enable author whitelist filtering</label>
+            </div>
+            <div class="help-text">Only forward posts from specific authors</div>
+        </div>
+        
+        <div class="form-group">
+            <label for="ALLOWED_AUTHORS">Allowed Authors (comma-separated)</label>
+            <textarea id="ALLOWED_AUTHORS" name="ALLOWED_AUTHORS" rows="2">{{ config.ALLOWED_AUTHORS }}</textarea>
+            <div class="help-text">Example: Ran BY online GS,BY RAN ONLINE Official,Admin Name</div>
+        </div>
+        
+        <hr style="border: none; border-top: 1px solid #30363d; margin: 2rem 0;">
+        
+        <h3>Scheduler Settings</h3>
+        
+        <div class="form-group">
+            <label for="CHECK_INTERVAL">Check Interval (seconds)</label>
+            <input type="number" id="CHECK_INTERVAL" name="CHECK_INTERVAL" value="{{ config.CHECK_INTERVAL }}" min="60" required>
+            <div class="help-text">How often to check Facebook for new posts (minimum 60 seconds)</div>
+        </div>
+        
+        <div class="form-group">
+            <div class="checkbox-group">
+                <input type="checkbox" id="SEED_ON_FIRST_RUN" name="SEED_ON_FIRST_RUN" value="true" {% if config.SEED_ON_FIRST_RUN == 'true' %}checked{% endif %}>
+                <label for="SEED_ON_FIRST_RUN" style="margin: 0;">Seed on first run</label>
+            </div>
+            <div class="help-text">Record existing posts without forwarding them on first run</div>
+        </div>
+        
+        <hr style="border: none; border-top: 1px solid #30363d; margin: 2rem 0;">
+        
+        <h3>Advanced: Routing & Colors</h3>
+        <p class="help-text" style="margin-bottom: 1rem;">
+            Configure keyword-based routing and custom embed colors. For advanced users.
+        </p>
+        
+        <div id="routing-container">
+            {% for keyword, channel_id in config.DISCORD_ROUTES.items() %}
+            <div class="form-group" style="display: grid; grid-template-columns: 1fr 1fr 100px auto; gap: 0.5rem; align-items: end;">
+                <div>
+                    <label>Keyword</label>
+                    <input type="text" class="route-keyword" value="{{ keyword }}" placeholder="e.g., maintenance_alert">
+                </div>
+                <div>
+                    <label>Channel ID</label>
+                    <input type="text" class="route-channel" value="{{ channel_id }}" placeholder="Channel ID">
+                </div>
+                <div>
+                    <label>Color</label>
+                    <input type="text" class="route-color" value="{{ config.DISCORD_ROUTE_COLORS.get(keyword, '') }}" placeholder="#FF0000">
+                </div>
+                <button type="button" class="btn btn-danger" onclick="removeRoute(this)" style="padding: 0.75rem;">❌</button>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <button type="button" class="btn btn-secondary" onclick="addRoute()">➕ Add Routing Rule</button>
+        
+        <hr style="border: none; border-top: 1px solid #30363d; margin: 2rem 0;">
+        
+        <div class="btn-group">
+            <button type="submit" class="btn btn-primary">💾 Save Configuration</button>
+            <button type="button" class="btn btn-secondary" onclick="location.reload()">↺ Reset Changes</button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">← Back to Dashboard</a>
+        </div>
+        
+        <div id="save-message" style="margin-top: 1rem;"></div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function addRoute() {
+        const container = document.getElementById('routing-container');
+        const div = document.createElement('div');
+        div.className = 'form-group';
+        div.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr 100px auto; gap: 0.5rem; align-items: end;';
+        div.innerHTML = `
+            <div>
+                <label>Keyword</label>
+                <input type="text" class="route-keyword" placeholder="e.g., event">
+            </div>
+            <div>
+                <label>Channel ID</label>
+                <input type="text" class="route-channel" placeholder="Channel ID">
+            </div>
+            <div>
+                <label>Color</label>
+                <input type="text" class="route-color" placeholder="#00FF00">
+            </div>
+            <button type="button" class="btn btn-danger" onclick="removeRoute(this)" style="padding: 0.75rem;">❌</button>
+        `;
+        container.appendChild(div);
+    }
+    
+    function removeRoute(btn) {
+        btn.closest('.form-group').remove();
+    }
+    
+    document.getElementById('config-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const form = e.target;
+        const saveBtn = form.querySelector('button[type="submit"]');
+        const msg = document.getElementById('save-message');
+        
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="loading"></span> Saving...';
+        msg.innerHTML = '';
+        
+        // Gather form data
+        const config = {
+            DISCORD_TOKEN: form.DISCORD_TOKEN.value,
+            DISCORD_CHANNEL_ID: form.DISCORD_CHANNEL_ID.value,
+            DISCORD_GUILD_ID: form.DISCORD_GUILD_ID.value,
+            DISCORD_PING_ROLE_ID: form.DISCORD_PING_ROLE_ID.value,
+            DISCORD_STREAMER_CHANNEL_ID: form.DISCORD_STREAMER_CHANNEL_ID.value,
+            FACEBOOK_SOURCES: form.FACEBOOK_SOURCES.value,
+            FILTER_BY_AUTHOR: form.FILTER_BY_AUTHOR.checked ? 'true' : 'false',
+            ALLOWED_AUTHORS: form.ALLOWED_AUTHORS.value,
+            CHECK_INTERVAL: form.CHECK_INTERVAL.value,
+            SEED_ON_FIRST_RUN: form.SEED_ON_FIRST_RUN.checked ? 'true' : 'false',
+            DATABASE_PATH: 'database.db',
+            LOG_MAX_BYTES: '5242880',
+            LOG_BACKUP_COUNT: '3',
+            DISCORD_ROUTES: {},
+            DISCORD_ROUTE_COLORS: {}
+        };
+        
+        // Gather routing rules
+        const routes = document.querySelectorAll('.route-keyword');
+        routes.forEach((keywordInput, index) => {
+            const keyword = keywordInput.value.trim();
+            const channelInput = document.querySelectorAll('.route-channel')[index];
+            const colorInput = document.querySelectorAll('.route-color')[index];
+            
+            if (keyword && channelInput.value.trim()) {
+                config.DISCORD_ROUTES[keyword] = channelInput.value.trim();
+                
+                if (colorInput.value.trim()) {
+                    config.DISCORD_ROUTE_COLORS[keyword] = colorInput.value.trim();
+                }
+            }
+        });
+        
+        try {
+            const response = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                msg.innerHTML = '<div class="alert alert-success">' + data.message + ' You may need to restart the bot.</div>';
+            } else {
+                msg.innerHTML = '<div class="alert alert-error">' + data.message + '</div>';
+            }
+        } catch (error) {
+            msg.innerHTML = '<div class="alert alert-error">Error saving configuration: ' + error.message + '</div>';
+        } finally {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '💾 Save Configuration';
+        }
+    });
+</script>
+{% endblock %}

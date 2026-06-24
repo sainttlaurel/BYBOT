@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - BY BOTS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Bot Control</h2>
+    <div class="btn-group">
+        <button class="btn btn-primary" onclick="startBot()" id="btn-start">Start Bot</button>
+        <button class="btn btn-danger" onclick="stopBot()" id="btn-stop">Stop Bot</button>
+        <button class="btn btn-secondary" onclick="restartBot()" id="btn-restart">Restart Bot</button>
+    </div>
+    <div id="bot-message" style="margin-top: 1rem;"></div>
+</div>
+
+<div class="card">
+    <h2>Quick Stats</h2>
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total_posts }}</div>
+            <div class="stat-label">Total Posts Tracked</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.unique_authors }}</div>
+            <div class="stat-label">Unique Authors</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.posts_7d }}</div>
+            <div class="stat-label">Posts (7 Days)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.posts_today }}</div>
+            <div class="stat-label">Posts Today</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.configured_sources }}</div>
+            <div class="stat-label">Facebook Sources</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ config.CHECK_INTERVAL }}s</div>
+            <div class="stat-label">Check Interval</div>
+        </div>
+    </div>
+    {% if stats.last_scan %}
+    <p class="help-text" style="margin-top: 1rem;">Last scan: {{ stats.last_scan }}</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>Configuration Overview</h2>
+    <table>
+        <tr>
+            <th>Setting</th>
+            <th>Value</th>
+        </tr>
+        <tr>
+            <td>Discord Channel</td>
+            <td>{{ config.DISCORD_CHANNEL_ID or 'Not set' }}</td>
+        </tr>
+        <tr>
+            <td>Facebook Sources</td>
+            <td>{{ config.FACEBOOK_SOURCES.split(',')|length if config.FACEBOOK_SOURCES else 0 }} source(s)</td>
+        </tr>
+        <tr>
+            <td>Check Interval</td>
+            <td>{{ config.CHECK_INTERVAL }} seconds ({{ (config.CHECK_INTERVAL|int / 60)|round(1) }} min)</td>
+        </tr>
+        <tr>
+            <td>Author Filtering</td>
+            <td>{{ 'Enabled' if config.FILTER_BY_AUTHOR == 'true' else 'Disabled' }}</td>
+        </tr>
+        <tr>
+            <td>Routing Rules</td>
+            <td>{{ config.DISCORD_ROUTES|length }} keyword(s)</td>
+        </tr>
+        <tr>
+            <td>Custom Colors</td>
+            <td>{{ config.DISCORD_ROUTE_COLORS|length }} color(s)</td>
+        </tr>
+        <tr>
+            <td>Avg Posts / Day</td>
+            <td>{{ stats.avg_posts_per_day }}</td>
+        </tr>
+    </table>
+    <div style="margin-top: 1rem;">
+        <a href="{{ url_for('config_page') }}" class="btn btn-secondary">Edit Configuration</a>
+        <a href="{{ url_for('stats_page') }}" class="btn btn-secondary">View Full Analytics</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Recent Posts</h2>
+    {% if stats.recent_posts %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Author</th>
+                    <th>Post ID</th>
+                    <th>Stored At</th>
+                    <th>Link</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for post in stats.recent_posts %}
+                <tr>
+                    <td>{{ post.author }}</td>
+                    <td style="font-family: monospace; font-size: 0.85rem;">{{ post.post_id[:20] }}{% if post.post_id|length > 20 %}...{% endif %}</td>
+                    <td>{{ post.stored_at[:19] if post.stored_at else 'N/A' }}</td>
+                    <td><a href="{{ post.post_url }}" target="_blank" style="color: #58a6ff;">Open</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p style="color: #8b949e;">No posts tracked yet. The bot will populate this once it starts monitoring.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    async function startBot() {
+        const btn = document.getElementById('btn-start');
+        const msg = document.getElementById('bot-message');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> Starting...';
+        msg.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/bot/start', { method: 'POST' });
+            const data = await response.json();
+
+            if (data.success) {
+                msg.innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                msg.innerHTML = '<div class="alert alert-error">' + data.message + '</div>';
+            }
+        } catch (error) {
+            msg.innerHTML = '<div class="alert alert-error">Error: ' + error.message + '</div>';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Start Bot';
+        }
+    }
+
+    async function stopBot() {
+        const btn = document.getElementById('btn-stop');
+        const msg = document.getElementById('bot-message');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> Stopping...';
+        msg.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/bot/stop', { method: 'POST' });
+            const data = await response.json();
+
+            if (data.success) {
+                msg.innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                msg.innerHTML = '<div class="alert alert-error">' + data.message + '</div>';
+            }
+        } catch (error) {
+            msg.innerHTML = '<div class="alert alert-error">Error: ' + error.message + '</div>';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Stop Bot';
+        }
+    }
+
+    async function restartBot() {
+        const btn = document.getElementById('btn-restart');
+        const msg = document.getElementById('bot-message');
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> Restarting...';
+        msg.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/bot/restart', { method: 'POST' });
+            const data = await response.json();
+
+            if (data.success) {
+                msg.innerHTML = '<div class="alert alert-success">' + data.message + '</div>';
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                msg.innerHTML = '<div class="alert alert-error">' + data.message + '</div>';
+            }
+        } catch (error) {
+            msg.innerHTML = '<div class="alert alert-error">Error: ' + error.message + '</div>';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'Restart Bot';
+        }
+    }
+</script>
+{% endblock %}

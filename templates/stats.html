@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}Statistics - BY BOTS{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .bar-chart { margin-top: 1rem; }
+    .bar-row {
+        display: grid;
+        grid-template-columns: 90px 1fr 48px;
+        gap: 0.75rem;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    .bar-track {
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 4px;
+        height: 22px;
+        overflow: hidden;
+    }
+    .bar-fill {
+        background: #238636;
+        height: 100%;
+        min-width: 2px;
+    }
+    .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Overview</h2>
+    <div class="metric-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total_posts }}</div>
+            <div class="stat-label">Total Posts Tracked</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.unique_authors }}</div>
+            <div class="stat-label">Unique Authors</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.configured_sources }}</div>
+            <div class="stat-label">Configured Sources</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.avg_posts_per_day }}</div>
+            <div class="stat-label">Avg Posts / Day</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Activity (Last 30 Days)</h2>
+    <div class="metric-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.posts_today }}</div>
+            <div class="stat-label">Posts Today</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.posts_7d }}</div>
+            <div class="stat-label">Posts (7 Days)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.posts_30d }}</div>
+            <div class="stat-label">Posts (30 Days)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.last_scan or 'Never' }}</div>
+            <div class="stat-label">Last Scan</div>
+        </div>
+    </div>
+    {% if stats.first_post_at %}
+    <p class="help-text" style="margin-top: 1rem;">
+        Tracking period: {{ stats.first_post_at[:10] }} to {{ stats.last_post_at[:10] if stats.last_post_at else 'N/A' }}
+    </p>
+    {% endif %}
+</div>
+
+{% if stats.posts_by_day %}
+<div class="card">
+    <h2>Daily Volume (30 Days)</h2>
+    {% set max_count = stats.posts_by_day|map(attribute='count')|max %}
+    <div class="bar-chart">
+        {% for day in stats.posts_by_day %}
+        <div class="bar-row">
+            <span>{{ day.date[5:] }}</span>
+            <div class="bar-track">
+                <div class="bar-fill" style="width: {{ (day.count / max_count * 100)|round(1) if max_count else 0 }}%;"></div>
+            </div>
+            <span>{{ day.count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if stats.author_counts %}
+<div class="card">
+    <h2>Posts by Author</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Author</th>
+                <th>Posts</th>
+                <th>Share</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in stats.author_counts %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td>{{ item.author }}</td>
+                <td>{{ item.count }}</td>
+                <td>{{ ((item.count / stats.total_posts) * 100)|round(1) if stats.total_posts else 0 }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if stats.recent_posts %}
+<div class="card">
+    <h2>Recent Posts</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Author</th>
+                <th>Post ID</th>
+                <th>Created</th>
+                <th>Stored</th>
+                <th>Link</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for post in stats.recent_posts %}
+            <tr>
+                <td>{{ post.author }}</td>
+                <td style="font-family: monospace; font-size: 0.85rem;">{{ post.post_id[:16] }}...</td>
+                <td style="white-space: nowrap;">{{ post.created_at[:19] if post.created_at else 'N/A' }}</td>
+                <td style="white-space: nowrap;">{{ post.stored_at[:19] if post.stored_at else 'N/A' }}</td>
+                <td><a href="{{ post.post_url }}" target="_blank" style="color: #58a6ff;">Open</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <h2>Recent Posts</h2>
+    <p style="color: #8b949e; text-align: center; padding: 2rem;">
+        No posts tracked yet. Start the bot to begin monitoring Facebook.
+    </p>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>Refresh</h2>
+    <p class="help-text" style="margin-bottom: 1rem;">
+        Statistics are loaded when you visit this page. Use the button below to reload current numbers.
+    </p>
+    <button class="btn btn-secondary" onclick="location.reload()">Refresh Now</button>
+</div>
+{% endblock %}

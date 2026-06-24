@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - BY BOTS{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>📜 Live Logs</h2>
+    <p class="help-text" style="margin-bottom: 1rem;">
+        View recent log entries. Logs auto-refresh every 5 seconds.
+    </p>
+    
+    <div style="margin-bottom: 1rem;">
+        <label for="log-lines">Number of lines:</label>
+        <select id="log-lines" onchange="loadLogs()" style="width: auto; margin-left: 0.5rem;">
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+            <option value="200">200</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+        </select>
+        <button class="btn btn-secondary" onclick="loadLogs()" style="margin-left: 1rem;">🔄 Refresh Now</button>
+        <button class="btn btn-secondary" onclick="toggleAutoRefresh()" id="auto-refresh-btn" style="margin-left: 0.5rem;">⏸️ Pause Auto-Refresh</button>
+    </div>
+    
+    <div class="log-viewer" id="log-viewer">
+        <div style="color: #8b949e; text-align: center; padding: 2rem;">
+            <span class="loading"></span> Loading logs...
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let autoRefreshEnabled = true;
+    let autoRefreshInterval = null;
+    
+    async function loadLogs() {
+        const lines = document.getElementById('log-lines').value;
+        const viewer = document.getElementById('log-viewer');
+        
+        try {
+            const response = await fetch(`/api/logs?lines=${lines}`);
+            const data = await response.json();
+            
+            if (data.logs && data.logs.length > 0) {
+                viewer.innerHTML = data.logs.map(line => {
+                    // Color code log levels
+                    let coloredLine = line
+                        .replace(/\[ERROR\]/g, '<span style="color: #f85149;">[ERROR]</span>')
+                        .replace(/\[WARNING\]/g, '<span style="color: #d29922;">[WARNING]</span>')
+                        .replace(/\[INFO\]/g, '<span style="color: #58a6ff;">[INFO]</span>')
+                        .replace(/\[DEBUG\]/g, '<span style="color: #8b949e;">[DEBUG]</span>');
+                    
+                    return `<div class="log-line">${coloredLine}</div>`;
+                }).join('');
+                
+                // Auto-scroll to bottom
+                viewer.scrollTop = viewer.scrollHeight;
+            } else {
+                viewer.innerHTML = '<div style="color: #8b949e; text-align: center; padding: 2rem;">No logs available yet.</div>';
+            }
+        } catch (error) {
+            viewer.innerHTML = `<div style="color: #f85149; text-align: center; padding: 2rem;">Error loading logs: ${error.message}</div>`;
+        }
+    }
+    
+    function toggleAutoRefresh() {
+        const btn = document.getElementById('auto-refresh-btn');
+        autoRefreshEnabled = !autoRefreshEnabled;
+        
+        if (autoRefreshEnabled) {
+            btn.innerHTML = '⏸️ Pause Auto-Refresh';
+            startAutoRefresh();
+        } else {
+            btn.innerHTML = '▶️ Resume Auto-Refresh';
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+            }
+        }
+    }
+    
+    function startAutoRefresh() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+        }
+        autoRefreshInterval = setInterval(() => {
+            if (autoRefreshEnabled) {
+                loadLogs();
+            }
+        }, 5000);
+    }
+    
+    // Load logs on page load
+    loadLogs();
+    startAutoRefresh();
+</script>
+{% endblock %}
