@@ -18,6 +18,7 @@ COPY . .
 
 RUN mkdir -p logs data
 
-VOLUME ["/app/data", "/app/logs"]
+# Note: Railway uses its own volume system, VOLUME instruction not supported
+# VOLUME ["/app/data", "/app/logs"]
 
-CMD ["python", "watchdog.py"]
+CMD ["python", "bot.py"]
