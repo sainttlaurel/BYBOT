@@ -52,29 +52,29 @@ goto menu
 
 :bot
 echo Starting BY BOTS Discord/Facebook monitor...
-start "BY BOTS Bot" cmd /c python bot.py
+start "BY BOTS Bot" cmd /c python src/bot.py
 echo Bot started in new window.
 timeout /t 2 /nobreak
 goto menu
 
 :dashboard
 echo Starting BY BOTS web dashboard...
-start "BY BOTS Dashboard" cmd /c python dashboard.py
+start "BY BOTS Dashboard" cmd /c python src/dashboard.py
 echo Dashboard started in new window.
 timeout /t 2 /nobreak
 goto menu
 
 :gui
 echo Starting BY BOTS GUI launcher...
-start "BY BOTS GUI" cmd /c python gui.py
+start "BY BOTS GUI" cmd /c python src/gui.py
 echo GUI started in new window.
 timeout /t 2 /nobreak
 goto menu
 
 :all
 echo Starting BY BOTS bot and dashboard in separate windows...
-start "BY BOTS Bot" cmd /c python bot.py
-start "BY BOTS Dashboard" cmd /c python dashboard.py
+start "BY BOTS Bot" cmd /c python src/bot.py
+start "BY BOTS Dashboard" cmd /c python src/dashboard.py
 echo Both services started in separate windows.
 timeout /t 2 /nobreak
 goto menu
@@ -145,7 +145,7 @@ echo.
 echo Testing Security Reminder...
 echo Sending reminder to Discord channel 1514162841899368519...
 echo.
-python -c "import asyncio; from modules.discord_embed import build_sample_embed; print('Security reminder test - Use bot command to send actual reminder')" >nul 2>&1
+python -c "import sys; sys.path.insert(0, 'src'); from modules.discord_embed import build_sample_embed; print('Security reminder test - Use bot command to send actual reminder')" >nul 2>&1
 if %ERRORLEVEL% equ 0 (
     echo Reminder queued (will send when bot runs next).
 ) else (
@@ -156,7 +156,7 @@ echo.
 echo Reminder Features:
 echo - Channel: 1514162841899368519
 echo - Ping @everyone: YES
-echo - Interval: 300 seconds (5 minutes)
+echo - Interval: 1200 seconds (20 minutes)
 echo - Message: Security alert with scam/hack warnings
 echo.
 echo To modify settings, edit .env file:
