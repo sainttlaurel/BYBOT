@@ -11,10 +11,10 @@ from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 
-# Project root (directory containing this file)
-BASE_DIR: str = os.path.dirname(os.path.abspath(__file__))
+# Project root (parent of src directory)
+BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Load .env file into the environment before anything else reads it
+# Load .env file from project root into the environment before anything else reads it
 load_dotenv(os.path.join(BASE_DIR, ".env"), override=True)
 
 logger = logging.getLogger(__name__)
