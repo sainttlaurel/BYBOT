@@ -21,4 +21,4 @@ RUN mkdir -p logs data
 # Note: Railway uses its own volume system, VOLUME instruction not supported
 # VOLUME ["/app/data", "/app/logs"]
 
-CMD ["python", "bot.py"]
+CMD ["python", "src/bot.py"]
