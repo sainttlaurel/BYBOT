@@ -141,7 +141,18 @@ While deployment is building:
 
    Continue for all variables in your .env
 
-3. No need to save - Railway applies automatically
+3. Add Railway scraper tuning variables to reduce Chromium crashes:
+
+   Key: SCRAPER_MAX_RETRIES
+   Value: 4
+
+   Key: SCRAPER_RETRY_DELAY
+   Value: 5
+
+   Key: SCRAPER_SCROLLS
+   Value: 2
+
+4. No need to save - Railway applies automatically
 
 ### Step 5: Wait for Deployment
 

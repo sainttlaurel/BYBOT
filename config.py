@@ -166,6 +166,7 @@ if CHECK_INTERVAL <= 0:
     )
 
 # On first run with an empty DB, record visible posts without posting to Discord
+
 SEED_ON_FIRST_RUN: bool = _env_bool("SEED_ON_FIRST_RUN", default=True)
 
 # ── Database ──────────────────────────────────────────────────────────────────
@@ -197,6 +198,11 @@ SCRAPER_USER_AGENTS: list[str] = [
     ua.strip() for ua in _custom_ua_raw.split("|") if ua.strip()
 ]
 
+# Retry/backoff tuning for the scraper
+SCRAPER_MAX_RETRIES: int = int(os.getenv("SCRAPER_MAX_RETRIES", "3"))
+SCRAPER_RETRY_DELAY: int = int(os.getenv("SCRAPER_RETRY_DELAY", "5"))
+SCRAPER_SCROLLS: int = int(os.getenv("SCRAPER_SCROLLS", "3"))
+
 # ── Webhooks ──────────────────────────────────────────────────────────────────
 _webhook_urls_raw = os.getenv("WEBHOOK_URLS", "").strip()
 WEBHOOK_URLS: list[str] = [
@@ -216,3 +222,5 @@ if WEBHOOK_ONLY and not WEBHOOK_URLS:
 BOT_NAME: str = "BY BOTS"
 BOT_FOOTER: str = "BY BOTS • Facebook Community Monitor"
 BOT_COLOUR: int = 0x1877F2  # Facebook blue
+
+

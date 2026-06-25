@@ -104,24 +104,63 @@ _lock_file_handle = None
 def acquire_single_instance_lock() -> None:
     """Prevent multiple bot processes from running at the same time."""
     global _lock_file_handle
+    lock_path = config.LOCK_FILE
 
+    def _pid_running(pid: int) -> bool:
+        """Return True if a process with `pid` appears to be running."""
+        try:
+            # On POSIX, sending signal 0 tests for existence.
+            os.kill(pid, 0)
+        except PermissionError:
+            # Process exists but we don't have permission to signal it
+            return True
+        except OSError as e:
+            # ESRCH -> no such process
+            return False
+        return True
+
+    # Try to create and lock the file. If it fails, check for a stale PID file.
     try:
-        _lock_file_handle = open(config.LOCK_FILE, "w", encoding="utf-8")
+        _lock_file_handle = open(lock_path, "w", encoding="utf-8")
         _lock_file_handle.write(str(os.getpid()))
         _lock_file_handle.flush()
-        
+
         if sys.platform == "win32":
             import msvcrt
+
             _lock_file_handle.seek(0)
             msvcrt.locking(_lock_file_handle.fileno(), msvcrt.LK_NBLCK, 1)
         else:
             import fcntl
+
             _lock_file_handle.seek(0)
             fcntl.flock(_lock_file_handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except OSError:
+    except OSError as e:
+        # If a lock file exists, attempt to detect whether the PID inside is still running.
+        try:
+            if os.path.exists(lock_path):
+                with open(lock_path, "r", encoding="utf-8") as f:
+                    raw = f.read().strip()
+                try:
+                    existing_pid = int(raw) if raw else 0
+                except Exception:
+                    existing_pid = 0
+
+                if existing_pid and not _pid_running(existing_pid):
+                    # Stale PID found, remove the lock file and retry once
+                    try:
+                        os.remove(lock_path)
+                        logger.info("Removed stale lock file for PID %s", existing_pid)
+                        return acquire_single_instance_lock()
+                    except Exception:
+                        logger.warning("Could not remove stale lock file %s", lock_path)
+
+        except Exception:
+            logger.debug("Error while attempting to inspect existing lock file", exc_info=True)
+
         logger.fatal(
-            "Another BY BOTS instance is already running. "
-            "Stop the other process before starting again."
+            "Another BY BOTS instance is already running or lock unavailable: %s",
+            e,
         )
         sys.exit(1)
 
@@ -161,87 +200,6 @@ class ByBotsBot(commands.Bot):
         self._scan_lock = asyncio.Lock()
         self.webhook_sender: WebhookSender | None = None
 
-    async def setup_hook(self) -> None:
-        """Called once before the client logs in. Used for all async initialization."""
-        logger.info("Starting bot setup hook...")
-
-        try:
-            await init_db()
-        except Exception as e:
-            logger.error("Failed to initialise database: %s", e, exc_info=True)
-            raise
-
-        # Sync slash commands — failure here must NOT prevent the scheduler from starting
-        try:
-            if config.DISCORD_GUILD_ID:
-                guild = discord.Object(id=config.DISCORD_GUILD_ID)
-                self.tree.copy_global_to(guild=guild)
-                await self.tree.sync(guild=guild)
-                logger.info(
-                    "Application commands synced to guild %s.", config.DISCORD_GUILD_ID
-                )
-            else:
-                await self.tree.sync()
-                logger.info("Application commands synced globally.")
-        except Exception as e:
-            logger.error(
-                "Failed to sync application commands (non-fatal): %s", e, exc_info=True
-            )
-
-        if config.WEBHOOK_ENABLED and config.WEBHOOK_URLS:
-            self.webhook_sender = WebhookSender(
-                config.WEBHOOK_URLS,
-                timeout=config.WEBHOOK_TIMEOUT,
-            )
-            logger.info(
-                "Webhook delivery enabled for %d endpoint(s).",
-                len(config.WEBHOOK_URLS),
-            )
-            if config.WEBHOOK_ONLY:
-                logger.info(
-                    "WEBHOOK_ONLY mode active — Discord channel posting is disabled."
-                )
-
-        try:
-            # Always start the scheduler regardless of sync outcome
-            self.scheduler.add_job(
-                self.check_facebook_group,
-                "interval",
-                seconds=config.CHECK_INTERVAL,
-                next_run_time=datetime.now(timezone.utc),
-                id="facebook_check",
-                replace_existing=True,
-                max_instances=1,
-                coalesce=True,
-            )
-            
-            # Add security reminder job if enabled
-            if config.SECURITY_REMINDER_ENABLED and config.DISCORD_SECURITY_CHANNEL_ID:
-                self.scheduler.add_job(
-                    self.send_security_reminder,
-                    "interval",
-                    seconds=config.SECURITY_REMINDER_INTERVAL,
-                    next_run_time=datetime.now(timezone.utc),
-                    id="security_reminder",
-                    replace_existing=True,
-                    max_instances=1,
-                    coalesce=True,
-                )
-                logger.info(
-                    "Security reminder scheduler started with interval of %s seconds to channel %s.",
-                    config.SECURITY_REMINDER_INTERVAL,
-                    config.DISCORD_SECURITY_CHANNEL_ID,
-                )
-            
-            self.scheduler.start()
-            logger.info(
-                "Facebook monitoring scheduler started with check interval of %s seconds.",
-                config.CHECK_INTERVAL,
-            )
-        except Exception as e:
-            logger.error("Failed to start scheduler: %s", e, exc_info=True)
-            raise
-
     async def on_ready(self) -> None:
         logger.info("Logged in as %s (ID: %s)", self.user, self.user.id)
         logger.info("BY BOTS is online and monitoring Facebook")
@@ -266,6 +224,8 @@ class ByBotsBot(commands.Bot):
             logger.info("Presence activity set.")
         except Exception as e:
             logger.error("Failed to set presence: %s", e, exc_info=True)
+
+        # (no startup diagnostic scheduled)
 
     async def close(self) -> None:
         """Cleanly shut down the scheduler and browser before disconnecting."""
@@ -655,6 +615,8 @@ class ByBotsBot(commands.Bot):
                     "success": False,
                     "error": str(e),
                 }
+
+    # startup diagnostic removed
 
 
 bot = ByBotsBot()

@@ -112,8 +112,8 @@ _LIVE_STREAM_PATTERNS = [
     re.compile(r"(.+?)\s+went\s+live", re.IGNORECASE),
 ]
 
-MAX_RETRIES = 3
-RETRY_DELAY = 5
+MAX_RETRIES = int(getattr(config, "SCRAPER_MAX_RETRIES", 3))
+RETRY_DELAY = int(getattr(config, "SCRAPER_RETRY_DELAY", 5))
 
 # Reused browser session (one Chromium instance for the bot lifetime)
 _playwright: Playwright | None = None
@@ -242,8 +242,13 @@ async def _extract_engagement_metrics(article) -> tuple[Optional[int], Optional[
     return reaction_count, comment_count, share_count
 
 
-async def _scroll_page(page: Page, scrolls: int = 5) -> None:
-    """Scroll the page a few times to load feed content, then dismiss any login popup."""
+async def _scroll_page(page: Page, scrolls: int | None = None) -> None:
+    """Scroll the page a few times to load feed content, then dismiss any login popup.
+
+    Default scrolls can be configured via `config.SCRAPER_SCROLLS` (int).
+    """
+    if scrolls is None:
+        scrolls = getattr(config, "SCRAPER_SCROLLS", 3)
     for _ in range(scrolls):
         await page.evaluate("window.scrollBy(0, window.innerHeight)")
         await asyncio.sleep(1.2)
@@ -562,6 +567,7 @@ async def _ensure_page() -> Page:
             logger.info("Using proxy: %s", config.SCRAPER_PROXY)
 
         _playwright = await async_playwright().start()
+        # Safer Chromium launch args for constrained environments (e.g., Railway)
         launch_kwargs: dict = {
             "headless": True,
             "args": [
@@ -569,6 +575,12 @@ async def _ensure_page() -> Page:
                 "--disable-setuid-sandbox",
                 "--disable-dev-shm-usage",
                 "--disable-blink-features=AutomationControlled",
+                "--disable-gpu",
+                "--single-process",
+                "--no-zygote",
+                "--disable-software-rasterizer",
+                "--disable-extensions",
+                "--disable-background-networking",
             ],
         }
         if proxy_config:
@@ -628,11 +640,17 @@ async def fetch_group_posts(
                     attempt, MAX_RETRIES, exc,
                     exc_info=True,
                 )
-                await _reset_browser()
+                # Reset browser if we see a crash-like message
+                msg = str(exc)
+                if "Page crashed" in msg or "Target crashed" in msg:
+                    logger.warning("Detected page crash; resetting browser session.")
+                    await _reset_browser()
 
+            # Exponential backoff between retries
             if attempt < MAX_RETRIES:
-                logger.info("Retrying in %d seconds…", RETRY_DELAY)
-                await asyncio.sleep(RETRY_DELAY)
+                backoff = RETRY_DELAY * (2 ** (attempt - 1))
+                logger.info("Retrying in %d seconds (attempt %d/%d)...", backoff, attempt + 1, MAX_RETRIES)
+                await asyncio.sleep(backoff)
 
         logger.error("All %d attempts to fetch Facebook posts failed.", MAX_RETRIES)
         return []
